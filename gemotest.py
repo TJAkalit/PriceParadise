@@ -2,27 +2,47 @@ import requests
 import bs4
 import xlwt
 
+i = 0
+wb = xlwt.Workbook()
+ws = wb.add_sheet('Лист 1')
+ws.write(i, 0, 'Исследование')
+ws.write(i, 1, 'Код')
+ws.write(i, 2, 'Цена')
 
-r = requests.Session()
-awn = r.get('https://www.gemotest.ru/novorossiysk/catalog/po-laboratornym-napravleniyam/samye-populyarnye-issledovaniya/?CITY_CODE=novorossiysk&EKG_HOME=0')
-print(awn)
+SESSION = requests.Session()
+response = SESSION.get('https://www.gemotest.ru/novorossiysk/catalog/po-laboratornym-napravleniyam/samye-populyarnye-issledovaniya/')
+PAGE = bs4.BeautifulSoup(response.text, features = 'html.parser')
 
-with open('index.html', 'rb') as ds:
+catalog = PAGE.findAll('table', {'class': 'd-col_xs_12 d-tal catalog-table'})
 
-    wb = xlwt.Workbook()
-    ws = wb.add_sheet('Лист 1')
-    ws.write(0, 0, 'Услуга')
-    ws.write(0, 1, 'Цена')
+for item in catalog:
 
-    awn = bs4.BeautifulSoup(ds.read().decode(), features = "html.parser")
-    awn = awn.findAll("table", {"class": "d-col_xs_12 d-tal catalog-table"})
-    i = 1
-    for st in awn:
-        ws.write(i, 0, st.find("a").contents[0].strip())
-        ws.write(i, 1, st.find('div', {"class": "h3 d-mb_0"}).contents[0])
-        # print(st.find("a").contents[0].strip())
-        # print(st.find('div', {"class": "h3 d-mb_0"}).contents[0])
+    i += 1
+    ws.write(i, 0, item.tbody.tr.td.a.contents[0].strip())                        # Исследование
+    ws.write(i, 1, item.tbody.tr.contents[3].contents[0])                         # Код
+    ws.write(i, 2, item.tbody.tr.contents[7].div.div.div.contents[0].strip())     # Цена        
+
+LOAD = PAGE.find('div', {'class': 'gt-catalog__load-more'}).a['data-id']          # Поиск data-id для AJAX запроса
+
+while True:
+
+    response = SESSION.get(f'https://www.gemotest.ru/novorossiysk/catalog/po-laboratornym-napravleniyam/samye-populyarnye-issledovaniya/?CITY_CODE=novorossiysk&EKG_HOME=0&ajax_cat=y&cat={LOAD}')
+    PAGE = bs4.BeautifulSoup(response.text, features= 'html.parser')
+    catalog = PAGE.findAll('table')
+
+    for item in catalog:
+
         i += 1
+        ws.write(i, 0, item.tbody.tr.td.a.contents[0].strip())                     # Исследование
+        ws.write(i, 1, item.tbody.tr.contents[3].contents[0])                      # Код
+        ws.write(i, 2, item.tbody.tr.contents[7].div.div.div.contents[0].strip())  # Цена  
 
-    wb.save('test.xls')
+    try:
+        
+        LOAD = PAGE.find('div', {'class': 'gt-catalog__load-more'}).a['data-id']   # Поиск data-id для AJAX запроса
+    
+    except:
 
+        break
+
+wb.save('gemotest.xls')
