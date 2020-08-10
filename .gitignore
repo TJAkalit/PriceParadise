@@ -1,3 +1,4 @@
+*.xls
 *.xlsx
 test.py
 parser2.py
